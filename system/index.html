@@ -1,25 +1,207 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>WebOS Desktop</title>
+    <style>
+        /* CSS: The "Look" of the OS */
+        body { 
+            margin: 0; 
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #3f51b5; /* OS Wallpaper Color */
+            background-image: linear-gradient(135deg, #3f51b5 0%, #2196f3 100%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* The Desktop Area */
+        #desktop {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            align-items: stretch;
+        }
+
+        /* The Chrome Browser Window */
+        .app-window {
+            flex: 3;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .toolbar {
+            background: #f1f3f4;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #d1d1d1;
+        }
+
+        #url-bar {
+            flex: 1;
+            border-radius: 20px;
+            border: 1px solid #dfe1e5;
+            padding: 6px 20px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #url-bar:focus { background: white; box-shadow: 0 1px 6px rgba(32,33,36,.28); }
+
+        webview { flex: 1; background: white; }
+
+        /* The File Explorer Sidebar */
+        #file-explorer {
+            flex: 1;
+            max-width: 300px;
+            background: rgba(32, 33, 36, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        #file-explorer h3 { margin-top: 0; font-weight: 400; border-bottom: 1px solid #5f6368; padding-bottom: 10px; }
+
+        #file-list { list-style: none; padding: 0; margin: 0; }
+        #file-list li {
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #file-list li:hover { background: rgba(255,255,255,0.1); }
+
+        /* The Taskbar (Shelf) */
+        #taskbar {
+            height: 48px;
+            background: rgba(32, 33, 36, 0.95);
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 15px;
+            justify-content: space-between;
+        }
+
+        #start-menu-btn {
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: transform 0.2s;
+        }
+        #start-menu-btn:hover { transform: scale(1.1); }
+
+        .tray { display: flex; gap: 20px; align-items: center; font-size: 13px; font-weight: 500; }
+    </style>
 </head>
 <body>
+
     <div id="desktop">
-        <!-- Browser App -->
+        <!-- Main Browser -->
         <div class="app-window">
             <div class="toolbar">
-                <input type="text" id="url-bar" placeholder="Enter URL...">
+                <button onclick="webview.goBack()" style="border:none; background:none; cursor:pointer;">◀</button>
+                <button onclick="webview.reload()" style="border:none; background:none; cursor:pointer;">↻</button>
+                <input type="text" id="url-bar" value="https://www.google.com" spellcheck="false">
             </div>
-            <webview id="browser-view" src="https://google.com"></webview>
+            <webview id="browser-view" src="https://www.google.com"></webview>
         </div>
-        
-        <!-- File Manager Sidebar -->
+
+        <!-- File Explorer -->
         <div id="file-explorer">
             <h3>Files</h3>
-            <ul id="file-list"></ul>
+            <ul id="file-list">
+                <li>Loading files...</li>
+            </ul>
         </div>
     </div>
 
-    <script src="desktop.js"></script>
+    <!-- The OS Taskbar -->
+    <div id="taskbar">
+        <button id="start-menu-btn">○</button>
+        
+        <div class="tray">
+            <span id="wifi-status">🌐 Online</span>
+            <span id="clock">00:00 AM</span>
+        </div>
+    </div>
+
+    <script>
+        const webview = document.getElementById('browser-view');
+        const urlInput = document.getElementById('url-bar');
+        const fileList = document.getElementById('file-list');
+        const clockEl = document.getElementById('clock');
+
+        // Update URL bar when typing
+        urlInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                let url = urlInput.value;
+                if (!url.includes('.')) {
+                    url = 'https://www.google.com' + url;
+                } else if (!url.startsWith('http')) {
+                    url = 'https://' + url;
+                }
+                webview.loadURL(url);
+            }
+        });
+
+        // Update URL bar when the webview navigates
+        webview.addEventListener('did-navigate', (e) => {
+            urlInput.value = e.url;
+        });
+
+        // Load files from your custom node module
+        async function refreshFS() {
+            try {
+                const files = await window.api.getFiles(window.api.user);
+                if (files.length === 0) {
+                    fileList.innerHTML = '<li style="opacity:0.5">Folder is empty</li>';
+                    return;
+                }
+                fileList.innerHTML = files.map(f => `
+                    <li>
+                        <span>${f.isDir ? '📁' : '📄'}</span>
+                        <span>${f.name}</span>
+                    </li>
+                `).join('');
+            } catch (err) {
+                fileList.innerHTML = '<li>Error loading files</li>';
+            }
+        }
+
+        // Simple Clock
+        function updateClock() {
+            const now = new Date();
+            clockEl.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        setInterval(updateClock, 1000);
+        updateClock();
+        refreshFS();
+        
+        // Auto-refresh files every 5 seconds
+        setInterval(refreshFS, 5000);
+    </script>
 </body>
 </html>
