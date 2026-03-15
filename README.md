@@ -35,7 +35,7 @@ A lightweight, **ChromeOS-inspired** operating system environment built with **E
 1. **Clone the repository:**
    
    ```
-   git clone https://github.com
+   git clone https://github.com/sanchezes2024-eng/Webos-electron.git
    cd web-os-electron
    ```
 
